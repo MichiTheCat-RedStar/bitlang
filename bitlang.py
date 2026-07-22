@@ -5,11 +5,14 @@ import re
 from os import remove, system
 
 # Тестовый код
-TEST = '''
+TEST = r'''
 print 1;
 print 2;
 a = "123";
 print "aboba";
+print! "My age is ";
+print! 2077;
+print "!!!";
 '''
 isCompile = False	# Компилировать или интерпретировать?
 isDeleteC = False	# Удалять ли файл при компилировании?
@@ -26,12 +29,14 @@ bit_types = [
 # Все функции
 bit_tokens = [
 	('ВЫВОД', r'print (.*);'),
-	('ПРИСВОИТЬ', r'([a-zA-Z_]*) = (.*?);') # TODO
+	('ПРИСВОИТЬ', r'([a-zA-Z_]*) = (.*?);'), # TODO
+	('ОТОБРАЖЕНИЕ', r'print! (.*);')
 ]
 
 # Функции файла
 def _type(argument) -> tuple:
-	'''Проверка типа'''
+	'''Проверка типа
+	Вывод: tuple(bit_types, тип_без_форматирования)'''
 	for bit_name, bit_re in bit_types:
 		searched = re.search(bit_re, argument)
 		if searched:
@@ -73,11 +78,16 @@ if isCompile:
 					_arg_type = _type(argument)
 					if _arg_type[0] == 'типЧИСЛО':
 						f.write(f'\tprintf("%d\\n", {argument});\n')
-					else: # <- Пока только два типа (Число и Строка) работает, но в будущем перепишу
-						argument = _arg_type[1]
-						f.write(f'\tprintf("{argument}\\n");\n')
+					if _arg_type[0] == 'типСТРОКА':
+						f.write(f'\tprintf("{_arg_type[1]}\\n");\n')
 				case 'ПРИСВОИТЬ':
 					...
+				case 'ОТОБРАЖЕНИЕ':
+					_arg_type = _type(argument)
+					if _arg_type[0] == 'типЧИСЛО':
+						f.write(f'\tprintf("%d", {argument});\n')
+					if _arg_type[0] == 'типСТРОКА':
+						f.write(f'\tprintf("{_arg_type[1]}");\n')
 		f.write('\treturn 0;\n}') # EOF!
 	_return = system('gcc '+_name)
 	if isDeleteC:
@@ -94,3 +104,5 @@ else:
 				print(_type(argument)[1])
 			case 'ПРИСВОИТЬ':
 				...
+			case 'ОТОБРАЖЕНИЕ':
+				print(_type(argument)[1], end='')
