@@ -1,6 +1,9 @@
 #		bitlang // ☭
 # MichiTheCat-RedStar (c) 2026
 
+# ПРИЧИНА ОТКАЗА:
+# Вместо вывода через print тут для каждого типа свой print
+
 import re
 from os import remove, system
 

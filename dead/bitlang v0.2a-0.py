@@ -1,6 +1,9 @@
 #		bitlang // ☭
 # MichiTheCat-RedStar (c) 2026
 
+# ПРИЧИНА ОТКАЗА:
+# Создание костыльного проссчитывания аргументов через добавление в список выполняемых команд
+
 import re
 from os import remove, system
 
@@ -44,32 +47,29 @@ def _type(argument) -> tuple:
 	else:
 		raise TypeError('Ошибка типа!')
 
-def _func(line) -> tuple:
-	'''Проверка функции
-	Вывод: tuple(COMMAND, argument|(кортеж, аргумнетов))'''
-	isSearched = False
-	for bit_name, bit_re, bit_args in bit_tokens:
-		... # А сейчас я спать, потому оставлю как v0.1c-2
-
 # Код в выполняемые последовательно функции
 _command_lines = []
 _actual_line = 0
 for line in TEST.split('\n'):
-	if line.strip() != '': # TODO ниже заменить на _func
+	if line.strip() == '':
+		_actual_line += 1
+		continue
+	else:
 		isSearched = False
 		for bit_name, bit_re, bit_args in bit_tokens:
 			searched = re.search(bit_re, line)
 			if searched:
-				if bit_args > 1:
+				if bit_args > 1: # TODO v0.2a костыль, исправить, тут для токенов с большим количеством аргументов второй рассчёт
 					for arg in range(bit_args):
 						_command_lines.append((bit_name, searched.group(arg+1)))
 				else:
 					_command_lines.append((bit_name, searched.group(1)))
 				isSearched = True
 		if not isSearched:
-			raise ValueError(f'Ошибка в строке {_actual_line}!')
+			_actual_line = 'Ошибка в строке '+str(_actual_line)+'!'
+			raise ValueError(_actual_line)
 	_actual_line += 1
-del _actual_line # Ну спокойнее мне с явным удалением
+del _actual_line
 
 print(f'Команды: {_command_lines}\n')
 
