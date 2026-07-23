@@ -1,0 +1,3 @@
+baobab = "Пукать!!!";
+print! baobab;
+print! "!!!!!";

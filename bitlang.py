@@ -6,15 +6,38 @@ from os import remove, system
 
 # =======[TEST]========================================================
 # Тестовый код (Всё ниже до пункта всех типов - тестовая часть, она изменится)
-TEST = r'''
-print 1;
-print 2;
-a = "asd123";
-print a;
-'''
-isCompile = False	# Компилировать или интерпретировать?
-isDeleteC = False	# Удалять ли файл при компилировании?
-Flags = ''			# Флаги
+REPLmode = True		# <- Если нужно использовать как задумано для v0.2 (не тестов)
+if REPLmode:
+	TEST = ''
+	print('bitlang - MichiTheCat-RedStar (c) 2026.',
+	'\nНапишите /run для запуска или /exit для выхода.\n')
+	while True:
+		match _input := input('> '):
+			case '/exit':
+				print('\nУдачи!')
+				quit()
+			case '/run':
+				if bool(int(input('\nСохранить? (0|1): '))): # TODO реализовать загрузку, а ближе к релизу - своё IDE
+					with open(input('Дайте название: ')+'.bl', 'w', encoding='utf-8') as f:
+						f.write(TEST)
+				isCompile = bool(int(input('\nКомпилировать? (0|1): ')))
+				if isCompile:
+					isDeleteC = bool(int(input('Удалять C-код после компиляции? (0|1): ')))
+					Flags = input('Укажите флаги для компиляции (или нажмите Enter для пропуска): ')
+				print()
+				break
+			case _:
+				TEST += _input+'\n'
+else:
+	TEST = r'''
+	print 1;
+	print 2;
+	a = "asd123";
+	print a;
+	'''
+	isCompile = False	# Компилировать или интерпретировать?
+	isDeleteC = False	# Удалять ли файл при компилировании?
+	Flags = ''			# Флаги
 # =====================================================================
 
 # Все типы
