@@ -1,0 +1,181 @@
+#		bitlang // ☭
+# MichiTheCat-RedStar (c) 2026
+
+# ПРИЧИНА ОТКАЗА:
+# Нужда переписывать под более красивый код
+#  Это была первая стабильная архитектура, я писал от себя и оказывается
+#   сам случайно пришёл к выстраиванию дерева команд и их исполнение
+#  Так же случайно сам пришёл к пониманию интерпретатора и транслитора
+
+import re
+from os import remove, system
+
+# =======[TEST]========================================================
+# Тестовый код (Всё ниже до пункта всех типов - тестовая часть, она изменится)
+REPLmode = True		# <- Если нужно использовать как задумано для v0.2 (не тестов)
+if REPLmode:
+	TEST = ''
+	print('bitlang - MichiTheCat-RedStar (c) 2026.',
+	'\nНапишите /run для запуска или /exit для выхода.\n')
+	while True:
+		match _input := input('> '):
+			case '/exit':
+				print('\nУдачи!')
+				quit()
+			case '/run':
+				if bool(int(input('\nСохранить? (0|1): '))): # TODO реализовать загрузку, а ближе к релизу - своё IDE
+					with open(input('Дайте название: ')+'.bl', 'w', encoding='utf-8') as f:
+						f.write(TEST)
+				isCompile = bool(int(input('\nКомпилировать? (0|1): ')))
+				if isCompile:
+					isDeleteC = bool(int(input('Удалять C-код после компиляции? (0|1): ')))
+					Flags = input('Укажите флаги для компиляции (или нажмите Enter для пропуска): ')
+				print()
+				break
+			case _:
+				TEST += _input+'\n'
+else:
+	TEST = r'''
+	a = 5;
+	a -= 67;
+	print a;
+	'''
+	isCompile = False	# Компилировать или интерпретировать?
+	isDeleteC = False	# Удалять ли файл при компилировании?
+	Flags = ''			# Флаги
+# =====================================================================
+
+# Все типы
+bit_types = [ # Хранить регулярки в правильном порядке!
+	('типСТРОКА', r'"(.+)"'),
+	('типЧИСЛО', r'(\d+)'),
+	('типПЕРЕМЕННАЯ', r'([a-zA-Z_]+)')
+] # TODO: Вынести в объект класса, чтобы удобнее счиатть тип | <- неудобно будет для переписывания ЯПа на самом себе?
+
+# Все функции
+bit_tokens = [ # Хранить регулярки в правильном порядке? ДА!
+	('ВЫВОД', r'print\s+(.*);', 1),
+	('ПРИБАВИТЬ', r'([a-zA-Z_]*)\s*\+=\s*(\d*);', 2),
+	('ОТНЯТЬ', r'([a-zA-Z_]*)\s*\-=\s*(\d*);', 2),
+	('ПРИСВОИТЬ', r'([a-zA-Z_]*)\s*=\s*(.*);', 2),
+	('ОТОБРАЖЕНИЕ', r'print!\s+(.*);', 1),
+]
+
+# Функции файла
+def _type(argument) -> tuple:
+	'''Проверка типа
+	Вывод: tuple(bit_types, тип_без_форматирования)'''
+	for bit_name, bit_re in bit_types:
+		searched = re.search(bit_re, argument)
+		if searched:
+			return ((bit_name, searched.group(1)))
+	else:
+		raise TypeError('Ошибка типа!')
+
+def _func(line) -> None:
+	'''Проверка функции
+	Вывод: Изменение _command_lines'''
+	#Вывод: tuple(COMMAND, argument|{словарь: "аргумнетов"})''' # <- TODO
+	isSearched = False
+	for bit_name, bit_re, bit_args in bit_tokens:
+		searched = re.search(bit_re, line)
+		if searched:
+			if bit_args > 1:
+				arguments = {}
+				for arg in range(bit_args):
+					arguments[arg] = searched.group(arg+1)
+				_command_lines.append((bit_name, arguments))
+			else:
+				_command_lines.append((bit_name, searched.group(1)))
+			isSearched = True
+			break
+	if not isSearched:
+		raise ValueError(f'Ошибка в строке {_actual_line}!')
+
+# Код в выполняемые последовательно функции
+_command_lines = []
+_actual_line = 0
+for line in TEST.split('\n'):
+	line = line.strip()
+	if line != '':
+		_func(line)
+	_actual_line += 1
+del _actual_line # Ну спокойнее мне с явным удалением
+
+print(f'Команды: {_command_lines}\n')
+
+# Выполняемые последовательности в интерпретирование или компилирование
+if isCompile:
+	print('Компилируется...', end='', flush=True)
+	_name = 'tmpBL'+str(hash(TEST))[1:6]+'.c'
+	with open(_name, 'a', encoding='utf-8') as f:
+		f.write('#include <stdio.h>\n\n#define PRINT(x) printf(_Generic((x), int: "%d", char*: "%s", default: "?"), x)\n\nint main() {\n') # SOF!
+		for command, argument in _command_lines:
+			match command:
+				case 'ВЫВОД':
+					_arg_type = _type(argument)
+					if _arg_type[0] == 'типЧИСЛО':
+						f.write(f'\tprintf("%d\\n", {argument});\n')
+					elif _arg_type[0] == 'типСТРОКА':
+						f.write(f'\tprintf("%s\\n", "{_arg_type[1]}");\n')
+					elif _arg_type[0] == 'типПЕРЕМЕННАЯ':
+						f.write(f'\tPRINT({_arg_type[1]}); printf("\\n");\n')
+				case 'ПРИСВОИТЬ':
+					_arg_type = _type(argument[1])
+					if _arg_type[0] == 'типЧИСЛО':
+						f.write(f'\tint {_type(argument[0])[1]} = {_arg_type[1]};\n')
+					elif _arg_type[0] == 'типСТРОКА':
+						f.write(f'\tchar *{_type(argument[0])[1]} = "{_arg_type[1]}";\n')
+					elif _arg_type[0] == 'типПЕРЕМЕННАЯ':
+						raise TypeError('Нельзя задать переменную в переменную!')
+				case 'ОТОБРАЖЕНИЕ':
+					_arg_type = _type(argument)
+					if _arg_type[0] == 'типЧИСЛО':
+						f.write(f'\tprintf("%d", {argument});\n')
+					elif _arg_type[0] == 'типСТРОКА':
+						f.write(f'\tprintf("%s", "{_arg_type[1]}");\n')
+					elif _arg_type[0] == 'типПЕРЕМЕННАЯ':
+						f.write(f'\tPRINT({_arg_type[1]});\n')
+				case 'ПРИБАВИТЬ':		# TODO: ПРИБАВИТЬ и ОТНЯТЬ будут в v0.3a!!!
+					f.write('x += 1;')
+					... # TODO
+				case 'ОТНЯТЬ':
+					f.write('x -= 1;')
+					... # TODO
+		f.write('\treturn 0;\n}') # EOF!
+	_return = system('gcc '+Flags+_name)
+	if isDeleteC:
+		remove(_name)
+	if _return == 0:
+		print('\rВсё скомпилированно!')
+	else:
+		print('\rЗавершено с кодом:', _return)
+else:
+	print('Интерпретация:')
+	variables = {}
+	for command, argument in _command_lines:
+		match command:
+			case 'ВЫВОД':
+				if _type(argument)[0] != 'типПЕРЕМЕННАЯ':
+					print(_type(argument)[1])
+				else:
+					print(variables[(_type(argument)[1])])
+			case 'ПРИСВОИТЬ':
+				if _type(argument[1])[0] == 'типПЕРЕМЕННАЯ':
+					raise TypeError('Нельзя задать переменную в переменную!')
+				variables[_type(argument[0])[1]] = _type(argument[1])[1]
+			case 'ОТОБРАЖЕНИЕ':
+				if _type(argument)[0] != 'типПЕРЕМЕННАЯ':
+					print(_type(argument)[1], end='')
+				else:
+					print(variables[(_type(argument)[1])], end='')
+			case 'ПРИБАВИТЬ':
+				if (_type(argument[1])[0] != 'типЧИСЛО') and (_type(argument[0])[0] != 'типПЕРЕМЕННАЯ'):
+					raise SyntaxError('Неправильная запись!')
+				else:
+					variables[_type(argument[0])[1]] = int(variables.get(_type(argument[0])[1], 0)) + int(_type(argument[1])[1])
+			case 'ОТНЯТЬ':
+				if (_type(argument[1])[0] != 'типЧИСЛО') and (_type(argument[0])[0] != 'типПЕРЕМЕННАЯ'):
+					raise SyntaxError('Неправильная запись!')
+				else:
+					variables[_type(argument[0])[1]] = int(variables.get(_type(argument[0])[1], 0)) - int(_type(argument[1])[1])
