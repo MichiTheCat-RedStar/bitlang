@@ -30,9 +30,8 @@ if REPLmode:
 				TEST += _input+'\n'
 else:
 	TEST = r'''
-	print 1;
-	print 2;
-	a = "asd123";
+	a = 5;
+	a -= 67;
 	print a;
 	'''
 	isCompile = False	# Компилировать или интерпретировать?
@@ -48,10 +47,12 @@ bit_types = [ # Хранить регулярки в правильном пор
 ] # TODO: Вынести в объект класса, чтобы удобнее счиатть тип | <- неудобно будет для переписывания ЯПа на самом себе?
 
 # Все функции
-bit_tokens = [ # Хранить регулярки в правильном порядке? Не
-	('ВЫВОД', r'print (.*);', 1),
-	('ПРИСВОИТЬ', r'([a-zA-Z_]*) = (.*);', 2),
-	('ОТОБРАЖЕНИЕ', r'print! (.*);', 1)
+bit_tokens = [ # Хранить регулярки в правильном порядке? ДА!
+	('ВЫВОД', r'print\s+(.*);', 1),
+	('ПРИБАВИТЬ', r'([a-zA-Z_]*)\s*\+=\s*(\d*);', 2),
+	('ОТНЯТЬ', r'([a-zA-Z_]*)\s*\-=\s*(\d*);', 2),
+	('ПРИСВОИТЬ', r'([a-zA-Z_]*)\s*=\s*(.*);', 2),
+	('ОТОБРАЖЕНИЕ', r'print!\s+(.*);', 1),
 ]
 
 # Функции файла
@@ -81,6 +82,7 @@ def _func(line) -> None:
 			else:
 				_command_lines.append((bit_name, searched.group(1)))
 			isSearched = True
+			break
 	if not isSearched:
 		raise ValueError(f'Ошибка в строке {_actual_line}!')
 
@@ -88,7 +90,8 @@ def _func(line) -> None:
 _command_lines = []
 _actual_line = 0
 for line in TEST.split('\n'):
-	if line.strip() != '':
+	line = line.strip()
+	if line != '':
 		_func(line)
 	_actual_line += 1
 del _actual_line # Ну спокойнее мне с явным удалением
@@ -127,6 +130,12 @@ if isCompile:
 						f.write(f'\tprintf("%s", "{_arg_type[1]}");\n')
 					elif _arg_type[0] == 'типПЕРЕМЕННАЯ':
 						f.write(f'\tPRINT({_arg_type[1]});\n')
+				case 'ПРИБАВИТЬ':		# TODO: ПРИБАВИТЬ и ОТНЯТЬ будут в v0.3a!!!
+					f.write('x += 1;')
+					... # TODO
+				case 'ОТНЯТЬ':
+					f.write('x -= 1;')
+					... # TODO
 		f.write('\treturn 0;\n}') # EOF!
 	_return = system('gcc '+Flags+_name)
 	if isDeleteC:
@@ -154,3 +163,13 @@ else:
 					print(_type(argument)[1], end='')
 				else:
 					print(variables[(_type(argument)[1])], end='')
+			case 'ПРИБАВИТЬ':
+				if (_type(argument[1])[0] != 'типЧИСЛО') and (_type(argument[0])[0] != 'типПЕРЕМЕННАЯ'):
+					raise SyntaxError('Неправильная запись!')
+				else:
+					variables[_type(argument[0])[1]] = int(variables.get(_type(argument[0])[1], 0)) + int(_type(argument[1])[1])
+			case 'ОТНЯТЬ':
+				if (_type(argument[1])[0] != 'типЧИСЛО') and (_type(argument[0])[0] != 'типПЕРЕМЕННАЯ'):
+					raise SyntaxError('Неправильная запись!')
+				else:
+					variables[_type(argument[0])[1]] = int(variables.get(_type(argument[0])[1], 0)) - int(_type(argument[1])[1])
