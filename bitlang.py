@@ -150,4 +150,7 @@ else:
 					raise TypeError('Нельзя задать переменную в переменную!')
 				variables[_type(argument[0])[1]] = _type(argument[1])[1]
 			case 'ОТОБРАЖЕНИЕ':
-				print(_type(argument)[1], end='')
+				if _type(argument)[0] != 'типПЕРЕМЕННАЯ':
+					print(_type(argument)[1], end='')
+				else:
+					print(variables[(_type(argument)[1])], end='')
